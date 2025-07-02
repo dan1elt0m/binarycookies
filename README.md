@@ -73,7 +73,19 @@ Expires: 2023-12-31T23:59:59+00:00
 Flag: HttpOnly
 ----------------------------------------
 ```
+### Netscape Output
+For `netscape` output use the --output netscape flag.
+Example usage:
+```sh
+bcparser path/to/cookies.binarycookies --output netscape
+```
 
+Example output Netscape:
+```netscape 
+# Netscape HTTP Cookie File
+example.com	FALSE	/	TRUE	1704067199	session_id	abc123
+example.com	FALSE	/account	FALSE	1704067199	user_token	xyz789
+```
 
 ### Basic Usage Python
 
