@@ -1,5 +1,3 @@
-[![Github Actions Status](https://github.com/dan1elt0m/binary-cookies-reader/workflows/test/badge.svg)](https://github.com/dan1elt0m/binary-cookies-reader/actions/workflows/test.yml)
-
 # Binary Cookies
 
 Python library and CLI tool for reading and writing binary cookies files.
@@ -120,5 +118,17 @@ Flag: HttpOnly
 ----------------------------------------
 ```
 
-### Contributing
-Contributions are welcome! If you find a bug or have a feature request, please open an issue on GitHub. Pull requests are also welcome.
+
+### Netscape Output
+For `netscape` output use the --output netscape flag.
+Example usage:
+```sh
+bcparser path/to/cookies.binarycookies --output netscape
+```
+
+Example output Netscape:
+```netscape 
+# Netscape HTTP Cookie File
+example.com	FALSE	/	TRUE	1704067199	session_id	abc123
+example.com	FALSE	/account	FALSE	1704067199	user_token	xyz789
+```

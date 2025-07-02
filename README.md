@@ -46,49 +46,11 @@ Output:
   }
 ]
 ```
-
-
-### ASCII Output
-
-`ascii` output is also possible with the --output ascii flag.
-
-Example usage:
-```sh
-bcparser path/to/cookies.binarycookies --output ascii
-```
-
-Example output ASCII:
-```text
-Name: session_id
-Value: abc123
-URL: https://example.com
-Path: /
-Created: 2023-10-01T12:34:56+00:00
-Expires: 2023-12-31T23:59:59+00:00
-Flag: Secure
-----------------------------------------
-Name: user_token
-Value: xyz789
-URL: https://example.com
-Path: /account
-Created: 2023-10-01T12:34:56+00:00
-Expires: 2023-12-31T23:59:59+00:00
-Flag: HttpOnly
-----------------------------------------
-```
-### Netscape Output
-For `netscape` output use the --output netscape flag.
-Example usage:
-```sh
-bcparser path/to/cookies.binarycookies --output netscape
-```
-
-Example output Netscape:
-```netscape 
-# Netscape HTTP Cookie File
-example.com	FALSE	/	TRUE	1704067199	session_id	abc123
-example.com	FALSE	/account	FALSE	1704067199	user_token	xyz789
-```
+#### Output formats
+The CLI supports multiple output formats using the --output flag.
+- `json` (default): Outputs cookies in JSON format.
+- `ascii`: Outputs cookies in a human-readable ASCII format with each cookie property on a separate line.
+- `netscape`: Outputs cookies in the Netscape cookie file format.
 
 ### Basic Usage Python
 
