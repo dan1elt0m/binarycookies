@@ -54,7 +54,8 @@ lint.ignore = [
     "RUF012",  # causes failures in pydantic models
     "PLR0911", # for some reason can't ignore this on func definition
     "ISC001",
-    "COM812"
+    "COM812",
+    "T201", # WE want to use print in CLI
 ]
 lint.extend-select = [
     "I",

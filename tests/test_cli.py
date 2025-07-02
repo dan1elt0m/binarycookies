@@ -56,3 +56,24 @@ def test_cli_ascii_output(tmp_path, capsys):
     assert "-" * 40 in output
     assert "Flag.SECURE" not in output
     assert "Secure" in output
+
+
+def test_cli_netscape_output(tmp_path, capsys):
+    file_path = tmp_path / "Cookies.binarycookies"
+    data = {
+        "name": "name",
+        "value": "value",
+        "url": ".example.com",
+        "path": "/",
+        "create_datetime": 2032,
+        "expiry_datetime": 2032,
+        "flag": "Secure",
+    }
+    with open(file_path, "wb") as f:
+        # Call the dump method
+        dump(data, f)
+    cli(str(file_path), output="netscape")
+    output = capsys.readouterr().out
+
+    assert "# Netscape HTTP Cookie File" in output
+    assert "example.com\tTRUE\t/\tTRUE\t2032\tname\tvalue" in output
