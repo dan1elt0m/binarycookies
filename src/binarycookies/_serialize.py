@@ -8,9 +8,7 @@ from pydantic import __version__ as pydantic_version
 from binarycookies._deserialize import FLAGS
 from binarycookies.models import BcField, Cookie, CookieFields, FileFields, Format
 
-IS_PYDANTIC_V1 = False
-if pydantic_version.startswith("1."):
-    IS_PYDANTIC_V1 = True
+IS_PYDANTIC_V1 = pydantic_version.startswith("1.")
 
 CookiesCollection = Union[List[Dict], List[Cookie], Tuple[Dict], Tuple[Cookie], Cookie, Dict[str, str]]
 

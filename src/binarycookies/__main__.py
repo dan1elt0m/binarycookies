@@ -16,7 +16,7 @@ class DateTimeEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def cli(file_path: str, output: OutputType = "json"):
+def cli(file_path: str, output: OutputType = OutputType.json):
     """CLI entrypoint for reading Binary Cookies"""
     with open(file_path, "rb") as f:
         cookies = load(f)
