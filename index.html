@@ -471,9 +471,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#contributing" class="md-nav__link">
+  <a href="#netscape-output" class="md-nav__link">
     <span class="md-ellipsis">
-      Contributing
+      Netscape Output
     </span>
   </a>
   
@@ -708,9 +708,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#contributing" class="md-nav__link">
+  <a href="#netscape-output" class="md-nav__link">
     <span class="md-ellipsis">
-      Contributing
+      Netscape Output
     </span>
   </a>
   
@@ -737,7 +737,6 @@
 
 
 
-<p><a href="https://github.com/dan1elt0m/binary-cookies-reader/actions/workflows/test.yml"><img alt="Github Actions Status" src="https://github.com/dan1elt0m/binary-cookies-reader/workflows/test/badge.svg" /></a></p>
 <h1 id="binary-cookies">Binary Cookies</h1>
 <p>Python library and CLI tool for reading and writing binary cookies files.</p>
 <h2 id="requirements">Requirements</h2>
@@ -830,8 +829,16 @@ Replace <path_to_binary_cookies_file> with the path to the binary cookie file yo
 <a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>Flag: HttpOnly
 <a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>----------------------------------------
 </code></pre></div></p>
-<h3 id="contributing">Contributing</h3>
-<p>Contributions are welcome! If you find a bug or have a feature request, please open an issue on GitHub. Pull requests are also welcome.</p>
+<h3 id="netscape-output">Netscape Output</h3>
+<p>For <code>netscape</code> output use the --output netscape flag.
+Example usage:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>bcparser<span class="w"> </span>path/to/cookies.binarycookies<span class="w"> </span>--output<span class="w"> </span>netscape
+</code></pre></div></p>
+<p>Example output Netscape:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a># Netscape HTTP Cookie File
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>example.com FALSE   /   TRUE    1704067199  session_id  abc123
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>example.com FALSE   /account    FALSE   1704067199  user_token  xyz789
+</code></pre></div></p>
 
 
 

@@ -513,6 +513,33 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#binarycookies.__main__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __main__
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binarycookies.__main__.cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      cli
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binarycookies.models.Cookie" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cookie
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -595,6 +622,33 @@
   <a href="#binarycookies.loads" class="md-nav__link">
     <span class="md-ellipsis">
       loads
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binarycookies.__main__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __main__
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binarycookies.__main__.cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      cli
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binarycookies.models.Cookie" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cookie
     </span>
   </a>
   
@@ -1103,6 +1157,246 @@
     </div>
 
 </div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="binarycookies.__main__"></a>
+    <div class="doc doc-contents first">
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="binarycookies.__main__.cli" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">cli</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">OutputType</span><span class="o">.</span><span class="n">json</span><span class="p">)</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>CLI entrypoint for reading Binary Cookies</p>
+
+            <details class="quote">
+              <summary>Source code in <code>src/binarycookies/__main__.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-19">19</a></span>
+<span class="normal"><a href="#__codelineno-0-20">20</a></span>
+<span class="normal"><a href="#__codelineno-0-21">21</a></span>
+<span class="normal"><a href="#__codelineno-0-22">22</a></span>
+<span class="normal"><a href="#__codelineno-0-23">23</a></span>
+<span class="normal"><a href="#__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#__codelineno-0-29">29</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="k">def</span><span class="w"> </span><span class="nf">cli</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">OutputType</span> <span class="o">=</span> <span class="n">OutputType</span><span class="o">.</span><span class="n">json</span><span class="p">):</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;CLI entrypoint for reading Binary Cookies&quot;&quot;&quot;</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22"></a>        <span class="n">cookies</span> <span class="o">=</span> <span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a>    <span class="n">handler</span> <span class="o">=</span> <span class="n">OUTPUT_HANDLERS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">handler</span><span class="p">:</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a>        <span class="n">rprint</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[red]Error:[/red] Unsupported output type: </span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a>        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a>    <span class="n">handler</span><span class="p">(</span><span class="n">cookies</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="binarycookies.models.Cookie" class="doc doc-heading">
+            <code>binarycookies.models.Cookie</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents first">
+
+
+        <p>Represents a cookie in the binary cookies format.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="binarycookies.models.Cookie.name">name</span></code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The name of the cookie.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="binarycookies.models.Cookie.value">value</span></code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The value of the cookie.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="binarycookies.models.Cookie.url">url</span></code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The URL associated with the cookie.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="binarycookies.models.Cookie.path">path</span></code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path for which the cookie is valid.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="binarycookies.models.Cookie.create_datetime">create_datetime</span></code></td>
+            <td>
+                  <code><span title="datetime.datetime">datetime</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The creation date and time of the cookie.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="binarycookies.models.Cookie.expiry_datetime">expiry_datetime</span></code></td>
+            <td>
+                  <code><span title="datetime.datetime">datetime</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The expiration date and time of the cookie.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="binarycookies.models.Cookie.flag">flag</span></code></td>
+            <td>
+                  <code><span title="binarycookies.models.Flag">Flag</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The flags associated with the cookie, such as Secure or HttpOnly.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+              <details class="quote">
+                <summary>Source code in <code>src/binarycookies/models.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-22">22</a></span>
+<span class="normal"><a href="#__codelineno-0-23">23</a></span>
+<span class="normal"><a href="#__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#__codelineno-0-30">30</a></span>
+<span class="normal"><a href="#__codelineno-0-31">31</a></span>
+<span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="k">class</span><span class="w"> </span><span class="nc">Cookie</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a cookie in the binary cookies format.</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="sd">    Attributes:</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="sd">        name (str): The name of the cookie.</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="sd">        value (str): The value of the cookie.</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="sd">        url (str): The URL associated with the cookie.</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">        path (str): The path for which the cookie is valid.</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">        create_datetime (datetime): The creation date and time of the cookie.</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">        expiry_datetime (datetime): The expiration date and time of the cookie.</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">        flag (Flag): The flags associated with the cookie, such as Secure or HttpOnly.</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="n">value</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="n">create_datetime</span><span class="p">:</span> <span class="n">datetime</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>    <span class="n">expiry_datetime</span><span class="p">:</span> <span class="n">datetime</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="n">flag</span><span class="p">:</span> <span class="n">Flag</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
 
 
 
