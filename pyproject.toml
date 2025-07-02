@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "binarycookies"
-version = "2.2.0"
+version = "2.2.1"
 description = "Python Binary Cookies (de)serializer"
 authors = ["Daniel Tom <d.e.tom89@gmail.com>"]
 readme = "README.md"
