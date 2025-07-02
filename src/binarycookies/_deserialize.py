@@ -20,10 +20,6 @@ FLAGS = {
     5: Flag.SECURE_HTTPONLY,
 }
 
-# A safe, very large timestamp corresponding to datetime.max
-# This avoids using sys.maxsize directly, which can cause an OSError.
-MAX_TIMESTAMP = int(datetime.max.replace(tzinfo=timezone.utc).timestamp())
-
 
 def interpret_flag(flags: int) -> Flag:
     """Interprets the flags of a cookie and returns a human-readable string."""
