@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime, timezone
 from struct import pack
 from unittest.mock import patch
@@ -21,6 +22,21 @@ def test_mac_epoch_to_date():
     epoch = 0  # This corresponds to 2001-01-01 00:00:00
     expected_date = datetime(2001, 1, 1, 0, 0, tzinfo=timezone.utc)
     assert mac_epoch_to_date(epoch) == expected_date
+
+
+def test_mac_epoch_to_date_with_max_value():
+    """
+    Tests that a very large epoch value correctly returns datetime.max
+    instead of raising an OverflowError.
+    """
+    # A very large epoch value that would cause an overflow
+    large_epoch = sys.maxsize
+
+    # The expected result is datetime.max with UTC timezone
+    expected_date = datetime.max.replace(tzinfo=timezone.utc)
+
+    # Call the function and assert the result
+    assert mac_epoch_to_date(large_epoch) == expected_date
 
 
 def test_read_cookie():

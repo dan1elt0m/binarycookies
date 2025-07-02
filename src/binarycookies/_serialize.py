@@ -3,8 +3,14 @@ from io import BufferedWriter, BytesIO
 from struct import pack
 from typing import BinaryIO, Dict, List, Tuple, Union
 
+from pydantic import __version__ as pydantic_version
+
 from binarycookies._deserialize import FLAGS
 from binarycookies.models import BcField, Cookie, CookieFields, FileFields, Format
+
+IS_PYDANTIC_V1 = False
+if pydantic_version.startswith("1."):
+    IS_PYDANTIC_V1 = True
 
 CookiesCollection = Union[List[Dict], List[Cookie], Tuple[Dict], Tuple[Cookie], Cookie, Dict[str, str]]
 
@@ -82,9 +88,12 @@ def dumps(cookies: CookiesCollection) -> bytes:
         bytes: The serialized binary cookies data.
     """
     if isinstance(cookies, dict):
-        cookies = [Cookie.model_validate(cookies)]
+        cookies = [Cookie.parse_obj(cookies)] if IS_PYDANTIC_V1 else [Cookie.model_validate(cookies)]
     elif isinstance(cookies, (list, tuple)):
-        cookies = [Cookie.model_validate(cookie) for cookie in cookies]
+        if IS_PYDANTIC_V1:
+            cookies = [Cookie.parse_obj(cookie) for cookie in cookies]
+        else:
+            cookies = [Cookie.model_validate(cookie) for cookie in cookies]
     elif isinstance(cookies, Cookie):
         cookies = [cookies]
     else:

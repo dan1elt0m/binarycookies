@@ -20,6 +20,10 @@ FLAGS = {
     5: Flag.SECURE_HTTPONLY,
 }
 
+# A safe, very large timestamp corresponding to datetime.max
+# This avoids using sys.maxsize directly, which can cause an OSError.
+MAX_TIMESTAMP = int(datetime.max.replace(tzinfo=timezone.utc).timestamp())
+
 
 def interpret_flag(flags: int) -> Flag:
     """Interprets the flags of a cookie and returns a human-readable string."""
@@ -27,8 +31,19 @@ def interpret_flag(flags: int) -> Flag:
 
 
 def mac_epoch_to_date(epoch: int) -> datetime:
-    """Converts a mac epoch time to a datetime object."""
-    return datetime.fromtimestamp(epoch + 978307200, tz=timezone.utc)
+    """
+    Converts a mac epoch time to a datetime object, handling potential
+    overflows on both 32-bit and 64-bit systems.
+    """
+    # The Mac epoch starts on 2001-01-01, which is 978307200 seconds after the Unix epoch.
+    unix_epoch = epoch + 978307200
+
+    try:
+        return datetime.fromtimestamp(unix_epoch, tz=timezone.utc)
+    except (OverflowError, OSError):
+        # This handles timestamps that are too large for the system's C library,
+        # which can happen for non-expiring cookies or on 32-bit systems (Year 2038 problem).
+        return datetime.max.replace(tzinfo=timezone.utc)
 
 
 def read_string(data: BytesIO, size: int) -> str:
