@@ -20,6 +20,18 @@ class Flag(str, Enum):
 
 
 class Cookie(BaseModel):
+    """Represents a cookie in the binary cookies format.
+
+    Attributes:
+        name (str): The name of the cookie.
+        value (str): The value of the cookie.
+        url (str): The URL associated with the cookie.
+        path (str): The path for which the cookie is valid.
+        create_datetime (datetime): The creation date and time of the cookie.
+        expiry_datetime (datetime): The expiration date and time of the cookie.
+        flag (Flag): The flags associated with the cookie, such as Secure or HttpOnly.
+    """
+
     name: str
     value: str
     url: str
