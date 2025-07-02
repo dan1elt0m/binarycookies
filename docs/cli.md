@@ -17,7 +17,7 @@ bcparser FILE_PATH [--output FORMAT]
 - `FILE_PATH`: Path to the binary cookies file you want to read.
  
 #### Options
-- `--output FORMAT`: Specify the output format. Supported formats are `json` (default) and `ascii`.
+- `--output FORMAT`: Specify the output format. Supported formats are `json` (default), `ascii` and `netscape`.
 
 ### Examples
 **JSON Output (Default):**
@@ -30,6 +30,12 @@ bcparser /path/to/cookies.binarycookies --output ascii
 ```
 This will display cookies in a human-readable format with each cookie property on a separate line.
 
+**Netscape Format Output:**
+```bash
+bcparser /path/to/cookies.binarycookies --output netscape
+```
+This will display cookies in the Netscape cookie file format.
+
 ### Adding to Your Scripts
 The CLI functionality can be integrated into your Python scripts as follows:
 
@@ -41,4 +47,7 @@ cli("path/to/Cookies.binarycookies", output="json")
 
 # Read and output cookies in ASCII format
 cli("path/to/Cookies.binarycookies", output="ascii")
+
+# Read and output cookies in ASCII format
+cli("path/to/Cookies.binarycookies", output="netscape")
 ```

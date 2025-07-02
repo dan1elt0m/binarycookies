@@ -6,6 +6,9 @@
 
 CLI tool and Python library for reading and writing Binary Cookies.
 
+### Documentation
+For detailed documentation, please visit the [Binary Cookies Documentation](https://dan1elt0m.github.io/binarycookies/)
+
 ### Requirements
 
 - Python >= 3.9

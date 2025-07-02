@@ -68,7 +68,7 @@ def serialize_cookie(cookie: Cookie) -> bytes:
 
 
 def dump(cookies: CookiesCollection, f: Union[BufferedWriter, BytesIO, BinaryIO]):
-    """Dumps a Binary Cookies object to create a binary cookies file.k
+    """Dumps a Binary Cookies object to create a binary cookies file.
 
     Args:
         cookies: A Binary Cookies object to be serialized.
@@ -80,6 +80,7 @@ def dump(cookies: CookiesCollection, f: Union[BufferedWriter, BytesIO, BinaryIO]
 
 def dumps(cookies: CookiesCollection) -> bytes:
     """Dumps a Binary Cookies object to a byte string.
+
     Args:
         cookies: A Binary Cookies object to be serialized.
     Returns:
