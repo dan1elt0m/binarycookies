@@ -82,6 +82,18 @@ with open("path/to/cookies.binarycookies", "wb") as f:
     binarycookies.dump(cookie, f)
 ```
 
+### Ethical Use & Responsible Handling
+This project is intended for lawful, ethical use only. Typical, appropriate uses include:
+Inspecting Binary Cookies from your own devices or data you are authorized to access
+DFIR, QA, and security testing performed with explicit, written permission
+Educational/research work on datasets that are owned by you, anonymized, or publicly released for that purpose
+
+### You must not use this tool to:
+Access, extract, modify, or distribute cookies from systems or accounts you do not own or have permission to analyze
+Bypass authentication, session management, DRM, or other technical controls
+Enable tracking, stalking, doxxing, fraud, or other privacy-invasive or harmful activities
+
+
 ### License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
