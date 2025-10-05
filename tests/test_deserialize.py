@@ -39,6 +39,30 @@ def test_mac_epoch_to_date_with_max_value():
     assert mac_epoch_to_date(large_epoch) == expected_date
 
 
+MAC_UNIX_OFFSET = 978307200  # 1970->2001
+INT32_TIME_T_MAX = 2147483647  # 32-bit signed max
+INT32_CUTOFF_DT = datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
+
+
+def test_mac_epoch_to_date_32bit_clamp(monkeypatch):
+    # Simulate 32-bit architecture
+    monkeypatch.setattr("binarycookies._deserialize.sys.maxsize", 2**31 - 1)
+
+    # Epoch that would overflow 32-bit time_t (Unix ts = INT32_TIME_T_MAX + 1)
+    overflowing_epoch = (INT32_TIME_T_MAX - MAC_UNIX_OFFSET) + 1
+    assert mac_epoch_to_date(overflowing_epoch) == INT32_CUTOFF_DT
+
+
+def test_mac_epoch_to_date_32bit_boundary(monkeypatch):
+    monkeypatch.setattr("binarycookies._deserialize.sys.maxsize", 2**31 - 1)
+
+    # Just below the overflow threshold
+    safe_epoch = (INT32_TIME_T_MAX - MAC_UNIX_OFFSET) - 1
+    dt = mac_epoch_to_date(safe_epoch)
+    assert dt < INT32_CUTOFF_DT
+    assert dt == datetime.fromtimestamp(safe_epoch + MAC_UNIX_OFFSET, tz=timezone.utc)
+
+
 def test_read_cookie():
     from io import BytesIO
 

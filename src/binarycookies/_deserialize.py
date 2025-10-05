@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import sys
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from struct import unpack
 from typing import BinaryIO, List, Union
@@ -26,20 +27,34 @@ def interpret_flag(flags: int) -> Flag:
     return FLAGS.get(flags, Flag.UNKNOWN)
 
 
+MAC_UNIX_OFFSET = 978307200  # Seconds from Unix epoch (1970) to Mac epoch (2001)
+INT32_TIME_T_MAX = 2147483647  # Max signed 32-bit time_t (Unix timestamp)
+INT32_CUTOFF_DT = datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
+
+
 def mac_epoch_to_date(epoch: int) -> datetime:
     """
-    Converts a mac epoch time to a datetime object, handling potential
-    overflows on both 32-bit and 64-bit systems.
-    """
-    # The Mac epoch starts on 2001-01-01, which is 978307200 seconds after the Unix epoch.
-    unix_epoch = epoch + 978307200
+    Convert Mac epoch seconds (since 2001-01-01 UTC) to an aware datetime.
 
+    On 32-bit systems, clamp results that would overflow `time_t` to 2038-01-19T03:14:07Z.
+    On 64-bit systems, only clamp if the value exceeds datetime's range (-> datetime.max).
+    """
+    base = datetime(2001, 1, 1, tzinfo=timezone.utc)
+    # Fast path: pure Python arithmetic (independent of C time_t)
     try:
-        return datetime.fromtimestamp(unix_epoch, tz=timezone.utc)
-    except (OverflowError, OSError):
-        # This handles timestamps that are too large for the system's C library,
-        # which can happen for non-expiring cookies or on 32-bit systems (Year 2038 problem).
+        dt = base + timedelta(seconds=epoch)
+    except OverflowError:
+        # Beyond datetime range: choose appropriate cap
+        if sys.maxsize <= 2**31 - 1:
+            return INT32_CUTOFF_DT
         return datetime.max.replace(tzinfo=timezone.utc)
+
+    # 32-bit clamp logic
+    if sys.maxsize <= 2**31 - 1:
+        unix_ts = epoch + MAC_UNIX_OFFSET
+        if unix_ts > INT32_TIME_T_MAX:
+            return INT32_CUTOFF_DT
+    return dt
 
 
 def read_string(data: BytesIO, size: int) -> str:
