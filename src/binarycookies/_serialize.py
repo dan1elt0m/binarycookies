@@ -35,8 +35,23 @@ def write_field(data: BytesIO, field: BcField, value: Union[str, int]):
 
 def serialize_cookie(cookie: Cookie) -> bytes:
     """Serializes a cookie object to binary format."""
-    cookie_data = BytesIO()
     cookie_fields = CookieFields()
+
+    # Pre-calculate the size to allocate buffer
+    # Cookie header is 56 bytes (up to where string data starts)
+    url_bytes = cookie.url.encode("utf-8")
+    name_bytes = cookie.name.encode("utf-8")
+    path_bytes = cookie.path.encode("utf-8")
+    value_bytes = cookie.value.encode("utf-8")
+
+    # Each string has a null terminator
+    header_size = 56
+    strings_size = len(url_bytes) + 1 + len(name_bytes) + 1 + len(path_bytes) + 1 + len(value_bytes) + 1
+    total_size = header_size + strings_size
+
+    # Pre-allocate buffer with zeros
+    cookie_data = BytesIO(b"\x00" * total_size)
+
     # Write flag
     write_field(cookie_data, cookie_fields.flag, list(FLAGS.keys())[list(FLAGS.values()).index(cookie.flag)])
 
@@ -78,6 +93,21 @@ def dump(cookies: CookiesCollection, f: Union[BufferedWriter, BytesIO, BinaryIO]
     f.write(binary)
 
 
+def calculate_checksum(page_data: bytes) -> int:
+    """Calculates the checksum by summing every 4th byte of the page data.
+
+    Args:
+        page_data: The raw bytes of a page.
+    Returns:
+        int: The checksum value.
+    """
+    checksum = 0
+    # Sum every 4th byte (bytes at positions 0, 4, 8, 12, ...)
+    for i in range(0, len(page_data), 4):
+        checksum += page_data[i]
+    return checksum
+
+
 def dumps(cookies: CookiesCollection) -> bytes:
     """Dumps a Binary Cookies object to a byte string.
 
@@ -102,49 +132,70 @@ def dumps(cookies: CookiesCollection) -> bytes:
 
     data = BytesIO()
 
-    # Write file header
-    write_field(data, file_fields.header, "cook")
+    # Write file header (4 bytes: "cook")
+    data.write(b"cook")
 
-    # Number of pages (1 for simplicity)
+    # Number of pages (1 for simplicity, big-endian)
     write_field(data, file_fields.num_pages, 1)
 
-    # Write number of cookies
-    data.write(pack(Format.integer, len(cookies)))
+    # Write page size pointer
+    data.write(pack(Format.integer, 0))  # Placeholder, will be updated
 
-    # Placeholder for page size
-    page_size_offset = data.tell()
-    data.write(b"\x00\x00\x00\x00")
+    # Store the position where page data starts
+    page_start_offset = data.tell()
+    page_data = BytesIO()
 
-    # Write number of cookies
-    data.write(pack(Format.integer, len(cookies)))
+    # Write page header (4 bytes, appears to be a magic number or reserved)
+    page_data.write(b"\x00\x00\x01\x00")  # Based on observed binary cookie files
+
+    # Write number of cookies in the page
+    page_data.write(pack(Format.integer, len(cookies)))
+
     cookie_data_list = []
-    # Write cookies
+    # Serialize cookies
     for cookie in cookies:
         cookie_data_list.append(serialize_cookie(cookie))
 
-    initial_cookie_offset = data.tell() + (len(cookies) * 4)
+    # Calculate where cookie data will start:
+    # current position + (num_cookies * 4 bytes for offsets) + 12 bytes padding
+    initial_cookie_offset = page_data.tell() + (len(cookies) * 4) + 12
     initial_cookie = True
     previous_sizes = 0
+
+    # Write cookie offsets
     for cookie_data in cookie_data_list:
         if initial_cookie:
-            data.write(pack(Format.integer, initial_cookie_offset))
+            page_data.write(pack(Format.integer, initial_cookie_offset))
             initial_cookie = False
         else:
-            data.write(pack(Format.integer, previous_sizes + initial_cookie_offset))
+            page_data.write(pack(Format.integer, previous_sizes + initial_cookie_offset))
 
         previous_sizes += len(cookie_data)
 
-    # Unknown data
-    data.write(b"\x00\x00\x00\x00")
-    data.write(b"\x00\x00\x00\x00")
-    data.write(b"\x00\x00\x00\x00")
+    # Unknown/padding data (appears to be trailer for the page header)
+    page_data.write(b"\x00\x00\x00\x00")
+    page_data.write(b"\x00\x00\x00\x00")
+    page_data.write(b"\x00\x00\x00\x00")
 
+    # Write cookie data
     for cookie_data in cookie_data_list:
-        data.write(cookie_data)
+        page_data.write(cookie_data)
 
-    # Update page size
-    page_size = data.tell()
-    data.seek(page_size_offset)
-    data.write(pack(Format.integer, page_size))
+    # Get the complete page data
+    page_bytes = page_data.getvalue()
+    page_size = len(page_bytes)
+
+    # Update page size in the file header (big-endian format for page sizes)
+    data.seek(8)
+    data.write(pack(Format.integer_be, page_size))
+
+    # Write the page data
+    data.seek(page_start_offset)
+    data.write(page_bytes)
+
+    # Calculate and write checksum after all pages
+    # The checksum is the sum of every 4th byte of the page data
+    checksum = calculate_checksum(page_bytes)
+    data.write(pack(Format.integer, checksum))
 
     return data.getvalue()
