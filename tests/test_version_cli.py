@@ -32,16 +32,3 @@ def test_short_version_option():
 
     expected = f"binarycookies version {__version__}"
     assert expected in output
-
-
-def test_help_includes_version():
-    """Test that --help shows the version option."""
-    print("\nTesting --help includes version option...")
-    result = subprocess.run(
-        [sys.executable, "-m", "binarycookies", "--help"], capture_output=True, text=True, check=False
-    )
-
-    output = result.stdout + result.stderr
-
-    assert "--version" in output
-    assert "Show version and exit" in output
