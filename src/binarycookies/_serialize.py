@@ -38,15 +38,23 @@ def serialize_cookie(cookie: Cookie) -> bytes:
     cookie_fields = CookieFields()
 
     # Pre-calculate the size to allocate buffer
-    # Cookie header is 56 bytes (up to where string data starts)
+    # Cookie header is 60 bytes according to spec:
+    # 0-3: size, 4-7: unknownOne, 8-11: flags, 12-15: unknownTwo
+    # 16-19: domainOffset, 20-23: nameOffset, 24-27: pathOffset, 28-31: valueOffset
+    # 32-35: commentOffset, 36-39: endHeader
+    # 40-47: expires, 48-55: creation
+    # 56-59: comment (empty), 60+: domain, name, path, value strings
     url_bytes = cookie.url.encode("utf-8")
     name_bytes = cookie.name.encode("utf-8")
     path_bytes = cookie.path.encode("utf-8")
     value_bytes = cookie.value.encode("utf-8")
+    comment_bytes = b""  # Empty comment
 
     # Each string has a null terminator
-    header_size = 56
-    strings_size = len(url_bytes) + 1 + len(name_bytes) + 1 + len(path_bytes) + 1 + len(value_bytes) + 1
+    header_size = 60
+    strings_size = (
+        len(comment_bytes) + 1 + len(url_bytes) + 1 + len(name_bytes) + 1 + len(path_bytes) + 1 + len(value_bytes) + 1
+    )
     total_size = header_size + strings_size
 
     # Pre-allocate buffer with zeros
@@ -55,21 +63,35 @@ def serialize_cookie(cookie: Cookie) -> bytes:
     # Write flag
     write_field(cookie_data, cookie_fields.flag, list(FLAGS.keys())[list(FLAGS.values()).index(cookie.flag)])
 
-    # Calculate offsets
-    url_offset = 56  # The actual cookies content always starts at byte 56
-    name_offset = 1 + url_offset + len(cookie.url.encode("utf-8"))
-    path_offset = 1 + name_offset + len(cookie.name.encode("utf-8"))
-    value_offset = 1 + path_offset + len(cookie.path.encode("utf-8"))
+    # Calculate offsets - strings start at byte 60 after header
+    comment_offset = 60
+    domain_offset = comment_offset + len(comment_bytes) + 1  # +1 for null terminator
+    name_offset = domain_offset + len(url_bytes) + 1
+    path_offset = name_offset + len(name_bytes) + 1
+    value_offset = path_offset + len(path_bytes) + 1
 
-    write_field(cookie_data, cookie_fields.url_offset, url_offset)
+    # Write offsets (note: spec calls it domain but code uses url)
+    write_field(cookie_data, cookie_fields.url_offset, domain_offset)
     write_field(cookie_data, cookie_fields.name_offset, name_offset)
     write_field(cookie_data, cookie_fields.path_offset, path_offset)
     write_field(cookie_data, cookie_fields.value_offset, value_offset)
 
+    # Write commentOffset at offset 32
+    cookie_data.seek(32)
+    cookie_data.write(pack(Format.integer, comment_offset))
+
+    # Write endHeader marker at offset 36 (4 bytes of 0x00)
+    cookie_data.seek(36)
+    cookie_data.write(b"\x00\x00\x00\x00")
+
     write_field(cookie_data, cookie_fields.expiry_date, date_to_mac_epoch(cookie.expiry_datetime))
     write_field(cookie_data, cookie_fields.create_date, date_to_mac_epoch(cookie.create_datetime))
 
-    # Write cookie data
+    # Write string data starting at offset 60
+    cookie_data.seek(60)
+    # Write comment (empty string with null terminator)
+    write_string(cookie_data, "")
+    # Write domain (url), name, path, value
     write_string(cookie_data, cookie.url)
     write_string(cookie_data, cookie.name)
     write_string(cookie_data, cookie.path)
@@ -145,8 +167,8 @@ def dumps(cookies: CookiesCollection) -> bytes:
     page_start_offset = data.tell()
     page_data = BytesIO()
 
-    # Write page header (4 bytes, appears to be a magic number or reserved)
-    page_data.write(b"\x00\x00\x01\x00")  # Based on observed binary cookie files
+    # Write pageStart marker (4 bytes) - Must be 0x00, 0x01, 0x00, 0x00
+    page_data.write(b"\x00\x01\x00\x00")
 
     # Write number of cookies in the page
     page_data.write(pack(Format.integer, len(cookies)))
@@ -157,8 +179,8 @@ def dumps(cookies: CookiesCollection) -> bytes:
         cookie_data_list.append(serialize_cookie(cookie))
 
     # Calculate where cookie data will start:
-    # current position + (num_cookies * 4 bytes for offsets) + 12 bytes padding
-    initial_cookie_offset = page_data.tell() + (len(cookies) * 4) + 12
+    # current position + (num_cookies * 4 bytes for offsets) + 4 bytes for pageEnd marker
+    initial_cookie_offset = page_data.tell() + (len(cookies) * 4) + 4
     initial_cookie = True
     previous_sizes = 0
 
@@ -172,9 +194,7 @@ def dumps(cookies: CookiesCollection) -> bytes:
 
         previous_sizes += len(cookie_data)
 
-    # Unknown/padding data (appears to be trailer for the page header)
-    page_data.write(b"\x00\x00\x00\x00")
-    page_data.write(b"\x00\x00\x00\x00")
+    # Write pageEnd marker (4 bytes) - Must be 0x00, 0x00, 0x00, 0x00
     page_data.write(b"\x00\x00\x00\x00")
 
     # Write cookie data
@@ -195,7 +215,8 @@ def dumps(cookies: CookiesCollection) -> bytes:
 
     # Calculate and write checksum after all pages
     # The checksum is the sum of every 4th byte of the page data
+    # Specification says 8 bytes, so we write it as a 64-bit integer
     checksum = calculate_checksum(page_bytes)
-    data.write(pack(Format.integer, checksum))
+    data.write(pack("<Q", checksum))  # LE_uint64 (8 bytes)
 
     return data.getvalue()

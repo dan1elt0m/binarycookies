@@ -86,6 +86,10 @@ def read_cookie(cookie: BytesIO, cookie_size: int) -> Cookie:
     flag_int = read_field(cookie, cookie_fields.flag)
     flag = interpret_flag(flag_int)
 
+    # Read comment offset at offset 32
+    cookie.seek(32)
+    comment_offset = unpack(Format.integer, cookie.read(4))[0]  # noqa: F841
+
     url_offset = read_field(cookie, cookie_fields.url_offset)
     name_offset = read_field(cookie, cookie_fields.name_offset)
     path_offset = read_field(cookie, cookie_fields.path_offset)
@@ -94,6 +98,7 @@ def read_cookie(cookie: BytesIO, cookie_size: int) -> Cookie:
     expiry_datetime = mac_epoch_to_date(read_field(cookie, cookie_fields.expiry_date))
     create_datetime = mac_epoch_to_date(read_field(cookie, cookie_fields.create_date))
 
+    # Read strings - comment comes first, then domain (url)
     url = read_field(cookie, BcField(offset=url_offset, size=name_offset - url_offset, format=Format.string))
     name = read_field(cookie, BcField(offset=name_offset, size=path_offset - name_offset, format=Format.string))
     path = read_field(cookie, BcField(offset=path_offset, size=value_offset - path_offset, format=Format.string))

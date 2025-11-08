@@ -1,11 +1,11 @@
 import json
 from datetime import datetime
-from typing import Type
+from typing import Optional, Type
 
 import typer
 from rich import print as rprint
 
-from binarycookies import load
+from binarycookies import __version__, load
 from binarycookies._output_handlers import OUTPUT_HANDLERS, OutputType
 
 
@@ -16,7 +16,24 @@ class DateTimeEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def cli(file_path: str, output: OutputType = OutputType.json):
+app = typer.Typer()
+
+
+def version_callback(value: bool):  # noqa: FBT001
+    """Callback to print version and exit."""
+    if value:
+        rprint(f"binarycookies version {__version__}")
+        raise typer.Exit
+
+
+@app.command()
+def cli(
+    file_path: str = typer.Argument(..., help="Path to binary cookies file"),
+    output: OutputType = typer.Option(OutputType.json, "--output", "-o", help="Output format"),
+    version: Optional[bool] = typer.Option(  # noqa: ARG001
+        None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit"
+    ),
+):
     """CLI entrypoint for reading Binary Cookies"""
     with open(file_path, "rb") as f:
         cookies = load(f)
@@ -31,7 +48,7 @@ def cli(file_path: str, output: OutputType = OutputType.json):
 
 def main():
     """CLI entrypoint for reading Binary Cookies"""
-    typer.run(cli)
+    app()
 
 
 if __name__ == "__main__":
