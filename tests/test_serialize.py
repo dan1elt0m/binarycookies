@@ -192,3 +192,59 @@ def test_dump_naive_datetime_assumed_utc(tmp_path):
 
     assert cookie.create_datetime == datetime(2023, 10, 1, 12, 34, 56, tzinfo=timezone.utc)
     assert cookie.expiry_datetime == datetime(2023, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+
+
+def test_round_trip_non_ascii_strings():
+    cookie = {**COOKIE, "value": "héllo→世界", "path": "/päth"}
+
+    [result] = load_bytes(dumps([cookie]))
+
+    assert result.value == "héllo→世界"
+    assert result.path == "/päth"
+
+
+def test_round_trip_preserves_raw_flags():
+    cookie = {**COOKIE, "raw_flags": 0x4000005}
+
+    data = dumps([cookie])
+    [result] = load_bytes(data)
+
+    # Unknown bits survive the round trip; known bits drive the flag enum
+    assert result.raw_flags == 0x4000005
+    assert result.flag == "Secure; HttpOnly"
+    assert load_bytes(dumps([result]))[0].raw_flags == 0x4000005
+
+
+def test_round_trip_comment():
+    cookie = {**COOKIE, "comment": "test comment"}
+
+    data = dumps([cookie])
+    page_size = unpack(">i", data[8:12])[0]
+    page = data[12 : 12 + page_size]
+    cookie_offset = unpack("<i", page[8:12])[0]
+    record = page[cookie_offset:]
+
+    # The comment string comes first, right after the 56-byte header
+    assert unpack("<i", record[32:36])[0] == 56  # comment offset
+    assert unpack("<i", record[36:40])[0] == 0  # comment URL offset stays 0
+    assert unpack("<i", record[16:20])[0] == 56 + len(b"test comment") + 1  # domain offset
+    assert record[56:69] == b"test comment\x00"
+
+    [result] = load_bytes(data)
+    assert result.comment == "test comment"
+
+
+def test_cookie_without_comment_reads_none():
+    [result] = load_bytes(dumps([COOKIE]))
+    assert result.comment is None
+
+
+def test_domain_alias():
+    cookie = {**COOKIE}
+    del cookie["url"]
+    cookie["domain"] = "aliased.com"
+
+    [result] = load_bytes(dumps([cookie]))
+
+    assert result.url == "aliased.com"
+    assert result.domain == "aliased.com"

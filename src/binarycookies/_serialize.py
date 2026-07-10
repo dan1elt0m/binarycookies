@@ -6,8 +6,7 @@ from typing import BinaryIO, Dict, List, Tuple, Union
 
 from pydantic import __version__ as pydantic_version
 
-from binarycookies._deserialize import FLAGS
-from binarycookies.models import BcField, Cookie, CookieFields, FileFields, Format
+from binarycookies.models import BcField, Cookie, CookieFields, FileFields, Flag, Format
 
 IS_PYDANTIC_V1 = pydantic_version.startswith("1.")
 
@@ -23,6 +22,8 @@ FILE_FOOTER = b"\x07\x17\x20\x05\x00\x00\x00\x4b"
 COOKIE_HEADER_SIZE = 56
 # Value Safari stores in the trailing NSHTTPCookieAcceptPolicy plist
 DEFAULT_COOKIE_ACCEPT_POLICY = 2
+# Raw flag bitfield written when a cookie has no raw_flags set
+FLAG_VALUES = {Flag.UNKNOWN: 0, Flag.SECURE: 1, Flag.HTTPONLY: 4, Flag.SECURE_HTTPONLY: 5}
 
 
 def date_to_mac_epoch(date: datetime) -> int:
@@ -56,25 +57,30 @@ def serialize_cookie(cookie: Cookie) -> bytes:
     # 16-19: domainOffset, 20-23: nameOffset, 24-27: pathOffset, 28-31: valueOffset
     # 32-35: commentOffset (0 = no comment), 36-39: commentURLOffset (0 = none)
     # 40-47: expires (float64 LE), 48-55: creation (float64 LE)
-    # 56+: null-terminated domain, name, path, value strings
+    # 56+: null-terminated comment (if any), domain, name, path, value strings
     url_bytes = cookie.url.encode("utf-8")
     name_bytes = cookie.name.encode("utf-8")
     path_bytes = cookie.path.encode("utf-8")
     value_bytes = cookie.value.encode("utf-8")
+    comment_bytes = cookie.comment.encode("utf-8") if cookie.comment else None
 
     # Each string has a null terminator
     strings_size = len(url_bytes) + 1 + len(name_bytes) + 1 + len(path_bytes) + 1 + len(value_bytes) + 1
+    if comment_bytes is not None:
+        strings_size += len(comment_bytes) + 1
     total_size = COOKIE_HEADER_SIZE + strings_size
 
-    # Pre-allocate buffer with zeros; comment offsets at 32/36 stay 0 (no comment)
+    # Pre-allocate buffer with zeros; the comment URL offset at 36 stays 0
     cookie_data = BytesIO(b"\x00" * total_size)
 
-    # Write size and flag
+    # Write size and raw flags (falling back to the bits implied by the flag enum)
     cookie_data.write(pack(Format.integer, total_size))
-    write_field(cookie_data, cookie_fields.flag, list(FLAGS.keys())[list(FLAGS.values()).index(cookie.flag)])
+    raw_flags = cookie.raw_flags if cookie.raw_flags is not None else FLAG_VALUES[cookie.flag]
+    write_field(cookie_data, cookie_fields.flag, raw_flags)
 
-    # Calculate offsets - strings start right after the fixed header
-    domain_offset = COOKIE_HEADER_SIZE
+    # Calculate offsets - strings start right after the fixed header, comment first
+    comment_offset = COOKIE_HEADER_SIZE if comment_bytes is not None else 0
+    domain_offset = COOKIE_HEADER_SIZE if comment_bytes is None else comment_offset + len(comment_bytes) + 1
     name_offset = domain_offset + len(url_bytes) + 1  # +1 for null terminator
     path_offset = name_offset + len(name_bytes) + 1
     value_offset = path_offset + len(path_bytes) + 1
@@ -85,11 +91,17 @@ def serialize_cookie(cookie: Cookie) -> bytes:
     write_field(cookie_data, cookie_fields.path_offset, path_offset)
     write_field(cookie_data, cookie_fields.value_offset, value_offset)
 
+    if comment_offset:
+        cookie_data.seek(32)
+        cookie_data.write(pack(Format.integer, comment_offset))
+
     write_field(cookie_data, cookie_fields.expiry_date, date_to_mac_epoch(cookie.expiry_datetime))
     write_field(cookie_data, cookie_fields.create_date, date_to_mac_epoch(cookie.create_datetime))
 
-    # Write domain (url), name, path, value strings
+    # Write comment (if any), domain (url), name, path, value strings
     cookie_data.seek(COOKIE_HEADER_SIZE)
+    if cookie.comment:
+        write_string(cookie_data, cookie.comment)
     write_string(cookie_data, cookie.url)
     write_string(cookie_data, cookie.name)
     write_string(cookie_data, cookie.path)
@@ -147,6 +159,16 @@ def calculate_checksum(page_data: bytes) -> int:
     return checksum
 
 
+def _as_cookie(cookie: Union[Dict, Cookie]) -> Cookie:
+    """Coerces a dict (accepting `domain` as an alias for `url`) into a Cookie."""
+    if isinstance(cookie, Cookie):
+        return cookie
+    if isinstance(cookie, dict) and "url" not in cookie and "domain" in cookie:
+        cookie = {**cookie}
+        cookie["url"] = cookie.pop("domain")
+    return Cookie.parse_obj(cookie) if IS_PYDANTIC_V1 else Cookie.model_validate(cookie)
+
+
 def dumps(cookies: CookiesCollection) -> bytes:
     """Dumps a Binary Cookies object to a byte string.
 
@@ -155,17 +177,11 @@ def dumps(cookies: CookiesCollection) -> bytes:
     Returns:
         bytes: The serialized binary cookies data.
     """
-    if isinstance(cookies, dict):
-        cookies = [Cookie.parse_obj(cookies)] if IS_PYDANTIC_V1 else [Cookie.model_validate(cookies)]
-    elif isinstance(cookies, (list, tuple)):
-        if IS_PYDANTIC_V1:
-            cookies = [Cookie.parse_obj(cookie) for cookie in cookies]
-        else:
-            cookies = [Cookie.model_validate(cookie) for cookie in cookies]
-    elif isinstance(cookies, Cookie):
+    if isinstance(cookies, (dict, Cookie)):
         cookies = [cookies]
-    else:
+    elif not isinstance(cookies, (list, tuple)):
         raise TypeError("Invalid type for cookies. Expected dict, list, tuple, or Cookie.")
+    cookies = [_as_cookie(cookie) for cookie in cookies]
 
     file_fields = FileFields()
 

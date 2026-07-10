@@ -14,6 +14,10 @@ from binarycookies.models import (
     Format,
 )
 
+SECURE_BIT = 0x1
+HTTP_ONLY_BIT = 0x4
+
+# Kept for backwards compatibility; interpret_flag treats flags as a bitfield instead
 FLAGS = {
     0: Flag.UNKNOWN,
     1: Flag.SECURE,
@@ -23,8 +27,16 @@ FLAGS = {
 
 
 def interpret_flag(flags: int) -> Flag:
-    """Interprets the flags of a cookie and returns a human-readable string."""
-    return FLAGS.get(flags, Flag.UNKNOWN)
+    """Interprets the Secure/HttpOnly bits of the raw flags bitfield."""
+    secure = bool(flags & SECURE_BIT)
+    http_only = bool(flags & HTTP_ONLY_BIT)
+    if secure and http_only:
+        return Flag.SECURE_HTTPONLY
+    if secure:
+        return Flag.SECURE
+    if http_only:
+        return Flag.HTTPONLY
+    return Flag.UNKNOWN
 
 
 MAC_UNIX_OFFSET = 978307200  # Seconds from Unix epoch (1970) to Mac epoch (2001)
@@ -58,17 +70,12 @@ def mac_epoch_to_date(epoch: int) -> datetime:
 
 
 def read_string(data: BytesIO, size: int) -> str:
-    """Reads a string from binary file."""
-    result = ""
-    count = 0
-    c = data.read(1)
-    while unpack("<b", c)[0] != 0:
-        count += 1
-        if count > size:
-            break
-        result += str(c.decode())
-        c = data.read(1)
-    return result
+    """Reads a null-terminated UTF-8 string of at most `size` bytes from binary data."""
+    raw = data.read(size)
+    end = raw.find(b"\x00")
+    if end != -1:
+        raw = raw[:end]
+    return raw.decode("utf-8")
 
 
 def read_field(data: BytesIO, field: BcField) -> Union[str, int]:
@@ -83,12 +90,12 @@ def read_cookie(cookie: BytesIO, cookie_size: int) -> Cookie:
     """Reads a cookie from the given offset in the page."""
 
     cookie_fields = CookieFields()
-    flag_int = read_field(cookie, cookie_fields.flag)
-    flag = interpret_flag(flag_int)
+    raw_flags = read_field(cookie, cookie_fields.flag)
+    flag = interpret_flag(raw_flags)
 
-    # Read comment offset at offset 32
+    # Read comment offset at offset 32 (0 means the cookie has no comment)
     cookie.seek(32)
-    comment_offset = unpack(Format.integer, cookie.read(4))[0]  # noqa: F841
+    comment_offset = unpack(Format.integer, cookie.read(4))[0]
 
     url_offset = read_field(cookie, cookie_fields.url_offset)
     name_offset = read_field(cookie, cookie_fields.name_offset)
@@ -98,7 +105,13 @@ def read_cookie(cookie: BytesIO, cookie_size: int) -> Cookie:
     expiry_datetime = mac_epoch_to_date(read_field(cookie, cookie_fields.expiry_date))
     create_datetime = mac_epoch_to_date(read_field(cookie, cookie_fields.create_date))
 
-    # Read strings - comment comes first, then domain (url)
+    # Read strings - the comment (if any) comes first, then domain (url)
+    comment = None
+    if comment_offset > 0:
+        comment_end = url_offset if comment_offset <= url_offset else cookie_size
+        comment = read_field(
+            cookie, BcField(offset=comment_offset, size=comment_end - comment_offset, format=Format.string)
+        )
     url = read_field(cookie, BcField(offset=url_offset, size=name_offset - url_offset, format=Format.string))
     name = read_field(cookie, BcField(offset=name_offset, size=path_offset - name_offset, format=Format.string))
     path = read_field(cookie, BcField(offset=path_offset, size=value_offset - path_offset, format=Format.string))
@@ -112,6 +125,8 @@ def read_cookie(cookie: BytesIO, cookie_size: int) -> Cookie:
         create_datetime=create_datetime,
         expiry_datetime=expiry_datetime,
         flag=flag,
+        raw_flags=raw_flags,
+        comment=comment,
     )
 
 
