@@ -1,3 +1,4 @@
+import plistlib
 from datetime import datetime, timezone
 from io import BufferedWriter, BytesIO
 from struct import pack
@@ -12,9 +13,22 @@ IS_PYDANTIC_V1 = pydantic_version.startswith("1.")
 
 CookiesCollection = Union[List[Dict], List[Cookie], Tuple[Dict], Tuple[Cookie], Cookie, Dict[str, str]]
 
+# Every page starts with these 4 bytes (0x00000100 stored big-endian)
+PAGE_HEADER = b"\x00\x00\x01\x00"
+# 4 zero bytes terminate the page's cookie offset table
+PAGE_FOOTER = b"\x00\x00\x00\x00"
+# 8-byte magic that follows the checksum at the end of the file
+FILE_FOOTER = b"\x07\x17\x20\x05\x00\x00\x00\x4b"
+# Cookie records without comments have a 56-byte fixed header; strings follow
+COOKIE_HEADER_SIZE = 56
+# Value Safari stores in the trailing NSHTTPCookieAcceptPolicy plist
+DEFAULT_COOKIE_ACCEPT_POLICY = 2
+
 
 def date_to_mac_epoch(date: datetime) -> int:
-    """Converts a datetime object to mac epoch time."""
+    """Converts a datetime object to mac epoch time. Naive datetimes are assumed to be UTC."""
+    if date.tzinfo is None:
+        date = date.replace(tzinfo=timezone.utc)
     mac_epoch_start = datetime(2001, 1, 1, tzinfo=timezone.utc)
     return int((date - mac_epoch_start).total_seconds())
 
@@ -34,39 +48,34 @@ def write_field(data: BytesIO, field: BcField, value: Union[str, int]):
 
 
 def serialize_cookie(cookie: Cookie) -> bytes:
-    """Serializes a cookie object to binary format."""
+    """Serializes a cookie object to Apple's binary cookie record format."""
     cookie_fields = CookieFields()
 
-    # Pre-calculate the size to allocate buffer
-    # Cookie header is 60 bytes according to spec:
+    # Cookie record layout (matches Safari/CFNetwork):
     # 0-3: size, 4-7: unknownOne, 8-11: flags, 12-15: unknownTwo
     # 16-19: domainOffset, 20-23: nameOffset, 24-27: pathOffset, 28-31: valueOffset
-    # 32-35: commentOffset, 36-39: endHeader
-    # 40-47: expires, 48-55: creation
-    # 56-59: comment (empty), 60+: domain, name, path, value strings
+    # 32-35: commentOffset (0 = no comment), 36-39: commentURLOffset (0 = none)
+    # 40-47: expires (float64 LE), 48-55: creation (float64 LE)
+    # 56+: null-terminated domain, name, path, value strings
     url_bytes = cookie.url.encode("utf-8")
     name_bytes = cookie.name.encode("utf-8")
     path_bytes = cookie.path.encode("utf-8")
     value_bytes = cookie.value.encode("utf-8")
-    comment_bytes = b""  # Empty comment
 
     # Each string has a null terminator
-    header_size = 60
-    strings_size = (
-        len(comment_bytes) + 1 + len(url_bytes) + 1 + len(name_bytes) + 1 + len(path_bytes) + 1 + len(value_bytes) + 1
-    )
-    total_size = header_size + strings_size
+    strings_size = len(url_bytes) + 1 + len(name_bytes) + 1 + len(path_bytes) + 1 + len(value_bytes) + 1
+    total_size = COOKIE_HEADER_SIZE + strings_size
 
-    # Pre-allocate buffer with zeros
+    # Pre-allocate buffer with zeros; comment offsets at 32/36 stay 0 (no comment)
     cookie_data = BytesIO(b"\x00" * total_size)
 
-    # Write flag
+    # Write size and flag
+    cookie_data.write(pack(Format.integer, total_size))
     write_field(cookie_data, cookie_fields.flag, list(FLAGS.keys())[list(FLAGS.values()).index(cookie.flag)])
 
-    # Calculate offsets - strings start at byte 60 after header
-    comment_offset = 60
-    domain_offset = comment_offset + len(comment_bytes) + 1  # +1 for null terminator
-    name_offset = domain_offset + len(url_bytes) + 1
+    # Calculate offsets - strings start right after the fixed header
+    domain_offset = COOKIE_HEADER_SIZE
+    name_offset = domain_offset + len(url_bytes) + 1  # +1 for null terminator
     path_offset = name_offset + len(name_bytes) + 1
     value_offset = path_offset + len(path_bytes) + 1
 
@@ -76,32 +85,40 @@ def serialize_cookie(cookie: Cookie) -> bytes:
     write_field(cookie_data, cookie_fields.path_offset, path_offset)
     write_field(cookie_data, cookie_fields.value_offset, value_offset)
 
-    # Write commentOffset at offset 32
-    cookie_data.seek(32)
-    cookie_data.write(pack(Format.integer, comment_offset))
-
-    # Write endHeader marker at offset 36 (4 bytes of 0x00)
-    cookie_data.seek(36)
-    cookie_data.write(b"\x00\x00\x00\x00")
-
     write_field(cookie_data, cookie_fields.expiry_date, date_to_mac_epoch(cookie.expiry_datetime))
     write_field(cookie_data, cookie_fields.create_date, date_to_mac_epoch(cookie.create_datetime))
 
-    # Write string data starting at offset 60
-    cookie_data.seek(60)
-    # Write comment (empty string with null terminator)
-    write_string(cookie_data, "")
-    # Write domain (url), name, path, value
+    # Write domain (url), name, path, value strings
+    cookie_data.seek(COOKIE_HEADER_SIZE)
     write_string(cookie_data, cookie.url)
     write_string(cookie_data, cookie.name)
     write_string(cookie_data, cookie.path)
     write_string(cookie_data, cookie.value)
 
-    # Write size at the beginning
-    size = len(cookie_data.getvalue())
-    cookie_data.seek(0)
-    cookie_data.write(pack(Format.integer, size))
     return cookie_data.getvalue()
+
+
+def serialize_page(cookies: List[Cookie]) -> bytes:
+    """Serializes a list of cookies into a single page in Apple's binary cookies format."""
+    cookie_data_list = [serialize_cookie(cookie) for cookie in cookies]
+
+    page = BytesIO()
+    page.write(PAGE_HEADER)
+    page.write(pack(Format.integer, len(cookie_data_list)))
+
+    # Cookie offsets are relative to the page start:
+    # 8-byte page header + 4 bytes per offset + 4-byte page footer
+    cookie_offset = 8 + (len(cookie_data_list) * 4) + 4
+    for cookie_data in cookie_data_list:
+        page.write(pack(Format.integer, cookie_offset))
+        cookie_offset += len(cookie_data)
+
+    page.write(PAGE_FOOTER)
+
+    for cookie_data in cookie_data_list:
+        page.write(cookie_data)
+
+    return page.getvalue()
 
 
 def dump(cookies: CookiesCollection, f: Union[BufferedWriter, BytesIO, BinaryIO]):
@@ -152,71 +169,31 @@ def dumps(cookies: CookiesCollection) -> bytes:
 
     file_fields = FileFields()
 
+    # Safari stores one page per domain, in first-seen order
+    cookies_by_domain: Dict[str, List[Cookie]] = {}
+    for cookie in cookies:
+        cookies_by_domain.setdefault(cookie.url, []).append(cookie)
+    pages = [serialize_page(domain_cookies) for domain_cookies in cookies_by_domain.values()]
+
     data = BytesIO()
 
     # Write file header (4 bytes: "cook")
     data.write(b"cook")
 
-    # Number of pages (1 for simplicity, big-endian)
-    write_field(data, file_fields.num_pages, 1)
+    # Number of pages (big-endian)
+    write_field(data, file_fields.num_pages, len(pages))
 
-    # Write page size pointer
-    data.write(pack(Format.integer, 0))  # Placeholder, will be updated
+    # Page sizes (big-endian), followed by the page data itself
+    for page in pages:
+        data.write(pack(Format.integer_be, len(page)))
+    for page in pages:
+        data.write(page)
 
-    # Store the position where page data starts
-    page_start_offset = data.tell()
-    page_data = BytesIO()
-
-    # Write pageStart marker (4 bytes) - Must be 0x00, 0x01, 0x00, 0x00
-    page_data.write(b"\x00\x01\x00\x00")
-
-    # Write number of cookies in the page
-    page_data.write(pack(Format.integer, len(cookies)))
-
-    cookie_data_list = []
-    # Serialize cookies
-    for cookie in cookies:
-        cookie_data_list.append(serialize_cookie(cookie))
-
-    # Calculate where cookie data will start:
-    # current position + (num_cookies * 4 bytes for offsets) + 4 bytes for pageEnd marker
-    initial_cookie_offset = page_data.tell() + (len(cookies) * 4) + 4
-    initial_cookie = True
-    previous_sizes = 0
-
-    # Write cookie offsets
-    for cookie_data in cookie_data_list:
-        if initial_cookie:
-            page_data.write(pack(Format.integer, initial_cookie_offset))
-            initial_cookie = False
-        else:
-            page_data.write(pack(Format.integer, previous_sizes + initial_cookie_offset))
-
-        previous_sizes += len(cookie_data)
-
-    # Write pageEnd marker (4 bytes) - Must be 0x00, 0x00, 0x00, 0x00
-    page_data.write(b"\x00\x00\x00\x00")
-
-    # Write cookie data
-    for cookie_data in cookie_data_list:
-        page_data.write(cookie_data)
-
-    # Get the complete page data
-    page_bytes = page_data.getvalue()
-    page_size = len(page_bytes)
-
-    # Update page size in the file header (big-endian format for page sizes)
-    data.seek(8)
-    data.write(pack(Format.integer_be, page_size))
-
-    # Write the page data
-    data.seek(page_start_offset)
-    data.write(page_bytes)
-
-    # Calculate and write checksum after all pages
-    # The checksum is the sum of every 4th byte of the page data
-    # Specification says 8 bytes, so we write it as a 64-bit integer
-    checksum = calculate_checksum(page_bytes)
-    data.write(pack("<Q", checksum))  # LE_uint64 (8 bytes)
+    # File tail: 4-byte big-endian checksum over every 4th byte of each page,
+    # the 8-byte footer magic, and a binary plist with the cookie accept policy
+    checksum = sum(calculate_checksum(page) for page in pages)
+    data.write(pack(">I", checksum & 0xFFFFFFFF))
+    data.write(FILE_FOOTER)
+    data.write(plistlib.dumps({"NSHTTPCookieAcceptPolicy": DEFAULT_COOKIE_ACCEPT_POLICY}, fmt=plistlib.FMT_BINARY))
 
     return data.getvalue()
