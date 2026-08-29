@@ -1,8 +1,6 @@
 name: release
 on:
   workflow_dispatch: # Only manual trigger and only for the main branch
-    branches:
-    - main
     inputs:
       bump_level:
         type: choice
@@ -19,57 +17,52 @@ permissions:
 
 jobs:
   build-and-publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: release       # needed for PyPI OIDC
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
-        token: ${{ secrets.GIT_TOKEN_DANIEL}}
+        token: ${{ secrets.GIT_TOKEN_DANIEL }}  # admin token bypasses required checks on main
 
     - name: Set up Python 3.12
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v7
       with:
-        python-version: 3.12
+        python-version: "3.12"
 
-    - name: Install dependencies
+    - name: Install Poetry
+      run: curl -sSL https://install.python-poetry.org | python3 - --version 1.8.3
+
+    - name: Bump version, tag and push
       run: |
-        curl -sSL https://install.python-poetry.org | python3 - --version 1.2.2
+        set -eu
+        BUMP_LEVEL='${{ github.event.inputs.bump_level }}'
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
 
-    - name: Build and publish
-      run: |
-        set -euv
-        
-        BUMP_LEVEL=${{ github.event.inputs.bump_level }}
-        echo "bump level: ${BUMP_LEVEL}"
-        git config --local user.email "Bumpversion"
-        git config --local user.name "Bumpversion"
-
-        # Version bump
-
-        NEW_VERSION=$(poetry version -s ${BUMP_LEVEL})
-        echo ${NEW_VERSION}
-        git add pyproject.toml poetry.lock
+        NEW_VERSION=$(poetry version -s "${BUMP_LEVEL}")
+        echo "New version: ${NEW_VERSION}"
+        git add pyproject.toml
         git commit -m "Bump version to ${NEW_VERSION}"
         git tag "v${NEW_VERSION}"
 
-        git push -f  
-        git push --tags -f
-        
-        poetry build
-        
+        git push origin HEAD:main
+        git push origin "v${NEW_VERSION}"
+
         echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
 
-    - uses: pypa/gh-action-pypi-publish@release/v1    # publish
-    - name: Create Release
-      uses: actions/create-release@v1
+    - name: Build distributions
+      run: poetry build
+
+    - uses: pypa/gh-action-pypi-publish@release/v1    # publish via OIDC
+
+    - name: Create GitHub Release with generated notes
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ env.NEW_VERSION }}
-        release_name: v${{ env.NEW_VERSION }}
-        body: |
-          pypi package: https://pypi.org/project/binarycookies/${{ env.NEW_VERSION }}/
-        draft: false
-        prerelease: false
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release create "v${NEW_VERSION}" \
+          --title "v${NEW_VERSION}" \
+          --generate-notes \
+          --notes "PyPI package: https://pypi.org/project/binarycookies/${NEW_VERSION}/"

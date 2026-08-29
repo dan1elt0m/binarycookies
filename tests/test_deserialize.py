@@ -15,7 +15,10 @@ def test_interpret_flag():
     assert interpret_flag(1) == Flag.SECURE
     assert interpret_flag(4) == Flag.HTTPONLY
     assert interpret_flag(5) == Flag.SECURE_HTTPONLY
-    assert interpret_flag(6) == Flag.UNKNOWN
+    # Flags are a bitfield: unrelated bits must not hide the Secure/HttpOnly bits
+    assert interpret_flag(6) == Flag.HTTPONLY
+    assert interpret_flag(2) == Flag.UNKNOWN
+    assert interpret_flag(0x4000005) == Flag.SECURE_HTTPONLY
 
 
 def test_mac_epoch_to_date():
@@ -103,6 +106,7 @@ def test_read_binary_cookies_file(tmp_path):
         url="example.com",
         path="/",
         flag=Flag.SECURE,
+        raw_flags=1,
         create_datetime=datetime(2032, 1, 2, 0, 0, tzinfo=timezone.utc),
         expiry_datetime=datetime(2032, 1, 2, 0, 0, tzinfo=timezone.utc),
     )

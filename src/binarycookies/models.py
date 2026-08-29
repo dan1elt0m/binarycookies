@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -25,11 +26,14 @@ class Cookie(BaseModel):
     Attributes:
         name (str): The name of the cookie.
         value (str): The value of the cookie.
-        url (str): The URL associated with the cookie.
+        url (str): The domain the cookie belongs to (also exposed as `domain`).
         path (str): The path for which the cookie is valid.
         create_datetime (datetime): The creation date and time of the cookie.
         expiry_datetime (datetime): The expiration date and time of the cookie.
-        flag (Flag): The flags associated with the cookie, such as Secure or HttpOnly.
+        flag (Flag): Human-readable interpretation of the Secure/HttpOnly flag bits.
+        raw_flags (Optional[int]): The raw flags bitfield as stored on disk. Populated when
+            reading so unknown bits survive a round trip; derived from `flag` when absent.
+        comment (Optional[str]): The optional comment stored with the cookie.
     """
 
     name: str
@@ -39,6 +43,13 @@ class Cookie(BaseModel):
     create_datetime: datetime
     expiry_datetime: datetime
     flag: Flag
+    raw_flags: Optional[int] = None
+    comment: Optional[str] = None
+
+    @property
+    def domain(self) -> str:
+        """The domain the cookie belongs to; alias for `url`."""
+        return self.url
 
 
 class Format(str, Enum):
