@@ -33,7 +33,9 @@ Output:
     "path": "/",
     "create_datetime": "2023-10-01T12:34:56+00:00",
     "expiry_datetime": "2023-12-31T23:59:59+00:00",
-    "flag": "Secure"
+    "flag": "Secure",
+    "raw_flags": 1,
+    "comment": null
   },
   {
     "name": "user_token",
@@ -42,7 +44,9 @@ Output:
     "path": "/account",
     "create_datetime": "2023-10-01T12:34:56+00:00",
     "expiry_datetime": "2023-12-31T23:59:59+00:00",
-    "flag": "HttpOnly"
+    "flag": "HttpOnly",
+    "raw_flags": 4,
+    "comment": null
   }
 ]
 ```
@@ -71,7 +75,7 @@ import binarycookies
 cookie = {
     "name": "session_id",
     "value": "abc123",
-    "url": "https://example.com",
+    "url": "https://example.com",  # "domain" is accepted as an alias for "url"
     "path": "/",
     "create_datetime": "2023-10-01T12:34:56+00:00",
     "expiry_datetime": "2023-12-31T23:59:59+00:00",
@@ -81,6 +85,13 @@ cookie = {
 with open("path/to/cookies.binarycookies", "wb") as f:
     binarycookies.dump(cookie, f)
 ```
+
+Optional fields:
+- `comment`: cookie comment string stored in the file (default: no comment)
+- `raw_flags`: the raw flags bitfield written to disk. When omitted, it is derived
+  from `flag` (`Secure` = 1, `HttpOnly` = 4, `Secure; HttpOnly` = 5). Cookies read
+  with `load`/`loads` always carry `raw_flags`, so unknown flag bits survive a
+  read-modify-write round trip.
 
 ### Ethical Use & Responsible Handling
 This project is intended for lawful, ethical use only. Typical, appropriate uses include:
