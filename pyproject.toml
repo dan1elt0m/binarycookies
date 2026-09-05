@@ -23,7 +23,7 @@ mkdocs-gen-files = ">=0.4,<0.7"
 mkdocs-literate-nav = "^0.6.0"
 mkdocstrings = {extras = ["python"], version = ">=0.20,<0.31"}
 mkautodoc = "^0.2.0"
-pymdown-extensions = "^10.0.1"
+pymdown-extensions = ">=10.0.1,<12.0.0"
 
 [tool.poetry.scripts]
 bcparser = "binarycookies.__main__:main"
