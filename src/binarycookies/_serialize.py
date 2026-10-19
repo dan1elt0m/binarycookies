@@ -26,12 +26,16 @@ DEFAULT_COOKIE_ACCEPT_POLICY = 2
 FLAG_VALUES = {Flag.UNKNOWN: 0, Flag.SECURE: 1, Flag.HTTPONLY: 4, Flag.SECURE_HTTPONLY: 5}
 
 
-def date_to_mac_epoch(date: datetime) -> int:
-    """Converts a datetime object to mac epoch time. Naive datetimes are assumed to be UTC."""
+def date_to_mac_epoch(date: datetime) -> float:
+    """Converts a datetime object to mac epoch time. Naive datetimes are assumed to be UTC.
+
+    The value is stored on disk as a 64-bit double, so the fractional part of the
+    timestamp is preserved instead of being truncated to whole seconds.
+    """
     if date.tzinfo is None:
         date = date.replace(tzinfo=timezone.utc)
     mac_epoch_start = datetime(2001, 1, 1, tzinfo=timezone.utc)
-    return int((date - mac_epoch_start).total_seconds())
+    return (date - mac_epoch_start).total_seconds()
 
 
 def write_string(data: BytesIO, value: str):
