@@ -248,3 +248,44 @@ def test_domain_alias():
 
     assert result.url == "aliased.com"
     assert result.domain == "aliased.com"
+
+
+def test_date_to_mac_epoch_keeps_fractional_seconds():
+    """The Mac epoch is stored as a double, so sub-second precision must be kept."""
+    created = datetime(2023, 10, 1, 12, 34, 56, 789000, tzinfo=timezone.utc)
+    assert date_to_mac_epoch(created) == 717856496.789
+
+
+def test_dumps_stores_fractional_seconds_in_the_timestamp_double():
+    """The on-disk timestamp is a double, so its fractional part must survive serialization."""
+    created = datetime(2023, 10, 1, 12, 34, 56, 789000, tzinfo=timezone.utc)
+    data = dumps([{**COOKIE, "create_datetime": created.isoformat()}])
+
+    page_size = unpack(">i", data[8:12])[0]
+    page = data[12 : 12 + page_size]
+    cookie_offset = unpack("<i", page[8:12])[0]
+    record = page[cookie_offset:]
+
+    assert unpack("<d", record[48:56])[0] == 717856496.789
+
+
+def test_round_trip_preserves_sub_second_precision():
+    """Writing a cookie out and reading it back must not move the timestamps."""
+    created = datetime(2023, 10, 1, 12, 34, 56, 789000, tzinfo=timezone.utc)
+    expires = datetime(2033, 12, 31, 23, 59, 59, 123456, tzinfo=timezone.utc)
+    cookie = {**COOKIE, "create_datetime": created.isoformat(), "expiry_datetime": expires.isoformat()}
+
+    [result] = load_bytes(dumps([cookie]))
+
+    assert result.create_datetime == created
+    assert result.expiry_datetime == expires
+
+
+def test_round_trip_dates_before_the_mac_epoch():
+    """Dates before 2001-01-01 must not be rounded towards the Mac epoch."""
+    created = datetime(2000, 12, 31, 23, 59, 59, 500000, tzinfo=timezone.utc)
+    cookie = {**COOKIE, "create_datetime": created.isoformat()}
+
+    [result] = load_bytes(dumps([cookie]))
+
+    assert result.create_datetime == created
